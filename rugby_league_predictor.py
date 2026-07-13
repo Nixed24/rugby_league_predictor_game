@@ -1126,6 +1126,7 @@ def league_settings_menu():
             if option_types[i_var] == "yn":
                 new_settings[var] = box_values[i_var]
         settings = settings_instance.update_settings(new_settings)
+        settings_instance.save_settings()
         win.destroy()
         return
     confirm_button = ttk.Button(win, text="Confirm", command=lambda: send_settings())
@@ -1143,7 +1144,7 @@ def scoring_settings_menu():
     display_values = []
     option_vars = (("RESULT_POINTS", "DERBY_FACTOR_POINTS", "FORM_SCORE_DIVISOR",\
                     "spaceholder", "MARGIN_POINTS", "MARGIN_LIMITS", "MIDPOINT_POINTS", "MIDPOINT_LIMITS"))
-    option_keys = ["Points for predicting correct result", "Derby bonus", "Form score divisor", "",\
+    option_keys = ["Points for predicting correct result", "Derby bonus (Super League only)", "Form score divisor", "",\
                    "Margin accuracy points", "Margin accuracy limits", "Total score accuracy points", "Total score accuracy limits"]
     option_values = [settings["RESULT_POINTS"], settings["DERBY_FACTOR_POINTS"], settings["FORM_SCORE_DIVISOR"], \
                               "space", settings["MARGIN_POINTS"], settings["MARGIN_LIMITS"]\
@@ -1553,7 +1554,7 @@ scoremenu.add_command(label='Show player scores for this round', command=lambda:
 optionsmenu = Menu(menu)
 menu.add_cascade(label='Options', menu=optionsmenu)
 optionsmenu.add_command(label='League settings', command=lambda:league_settings_menu())
-optionsmenu.add_command(label='Save league settings', command=lambda:settings_instance.save_settings()) # change?
+#optionsmenu.add_command(label='Save league settings', command=lambda:settings_instance.save_settings()) # change?
 optionsmenu.add_command(label='Scoring settings', command=lambda:scoring_settings_menu())
 
 teamsmenu = Menu(menu)
