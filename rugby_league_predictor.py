@@ -71,12 +71,21 @@ class Settings:
         "team_id_table" : self.team_id_table,
         "team_desc_table" : self.team_desc_table,
         "derby_factor_pairs" : self.derby_factor_pairs,
-        "players" : self.players
+        "players" : self.players,
+        "NUMBER_OF_PLAYERS" : len(self.players),
+        "NUMBER_OF_TEAMS" : len(self.team_id_table),
+        "NUMBER_OF_ROUNDS" : 50,
+        "MAX_NUMBER_OF_MATCHES_PER_ROUND" : ((len(self.team_id_table)) // 2)
         }
         for key, value in zip(self.settings_dict.keys(), self.settings_dict.values()):
             eval_value = str(value)
             exec(f"{key} = eval_value")
         return self.settings_dict
+    def update_secondary_settings(self): #for settings whose value depends on another setting
+        self.settings_dict["NUMBER_OF_PLAYERS"] = len(self.settings_dict["players"])
+        self.settings_dict["NUMBER_OF_TEAMS"] = len(self.settings_dict["team_id_table"])
+        self.settings_dict["MAX_NUMBER_OF_MATCHES_PER_ROUND"] = len(self.settings_dict["team_id_table"]) // 2
+        return
     def update_settings(self, update_dict):
         for key, value in zip(update_dict.keys(), update_dict.values()):
             self.settings_dict[key] = value
@@ -106,6 +115,7 @@ class Settings:
         for key, value in zip(self.settings_dict.keys(), self.settings_dict.values()):
             eval_value = str(value)
             exec(f"{key} = eval_value")
+        self.update_secondary_settings()
         return self.settings_dict
     def save_settings(self):
         try:
@@ -128,29 +138,19 @@ def load_settings(filename=DEFAULT_LEAGUE_FILENAME):
         settings = settings_instance.update_settings(imported_settings)
         print(f"Successfully loaded settings (filename: {filename} | {settings['LEAGUE_FILENAME']})")
         league_file.close()
-    except:
+    except OSError:
         print("Creating default settings")
         settings_instance = Settings()
         settings = settings_instance.create_settings_dict()
     
-#TODO: add a default league filename in the settings and a load league dialogue
-
 load_settings()
+
+ROUND = 0
+
 ########################| -^- SETTINGS -^-|####################################
 
 ###############################################################################
 
-NUMBER_OF_PLAYERS = len(settings["players"])
-
-NUMBER_OF_TEAMS = len(settings["team_id_table"])
-
-NUMBER_OF_ROUNDS = ((NUMBER_OF_TEAMS - 1) * 2) + 1 #14 team SL w/ no loop fixtures except magic weekend
-
-MAX_NUMBER_OF_MATCHES_PER_ROUND = NUMBER_OF_TEAMS // 2
-
-MAX_NUMBER_OF_MATCHES = MAX_NUMBER_OF_MATCHES_PER_ROUND * NUMBER_OF_ROUNDS
-
-ROUND = 0
 
 if settings["ALPHABETICALLY_ORDER_TEAMS"]:
     settings["team_id_table"] = np.array(settings["team_id_table"])
@@ -170,7 +170,7 @@ for a, b in settings["derby_factor_pairs"]:
     settings["derby_factor_table"][column][row] = 1
 
 m = Tk()
-lb1 = Listbox(m, width = 75, height = NUMBER_OF_TEAMS)
+lb1 = Listbox(m, width = 75, height = settings["NUMBER_OF_TEAMS"])
 #####################  ------  INTERNAL FUNCTIONS  ------  ####################
 def do_nothing():
     return
@@ -223,7 +223,7 @@ class Team:
         self.losses = losses
         self.draws = draws
     def get_place(self, table):
-        place = NUMBER_OF_TEAMS - table.index(self.team_id)
+        place = settings["NUMBER_OF_TEAMS"] - table.index(self.team_id)
         return place
     def update_place(self, place):
         self.place = place
@@ -439,7 +439,7 @@ def allocate_team_stats(results):
     if settings["BYES"]:
         for i_team, team in enumerate(team_stack):
             #number_of_byes_array.append(max_matches - number_of_matches_array[i_team])
-            team.pts += WINNING_POINTS * (max_matches - number_of_matches_array[i_team])
+            team.pts += settings["WINNING_POINTS"] * (max_matches - number_of_matches_array[i_team])
 def update_table(teams):
     """
     Updates a team_stack to be ordered by place (points and points difference) of each team.
@@ -458,7 +458,7 @@ def update_table(teams):
     points_array = []
     pd_array = []
     ordered_table = []
-    points_range = (0, (NUMBER_OF_ROUNDS * 2) + 1)
+    points_range = (0, (settings["NUMBER_OF_ROUNDS"] * 2) + 1)
     for i in range (*points_range):
         points_array.append([])
         pd_array.append([])
@@ -473,7 +473,7 @@ def update_table(teams):
         points_array[i_b] = points_array[i_b][(solution)]
     for b in points_array:
         for t in b:
-            t.update_place((NUMBER_OF_TEAMS - len(ordered_table)))
+            t.update_place((settings["NUMBER_OF_TEAMS"] - len(ordered_table)))
             ordered_table.append(t)
     shelve_file = shelve.open("league")
     shelve_file["league_table"] = ordered_table
@@ -679,7 +679,7 @@ def prompt_add_round_fixtures():
     
     ui_index = 0
     
-    for i_teams in range (MAX_NUMBER_OF_MATCHES_PER_ROUND):
+    for i_teams in range (settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"]):
         
         ui_index = (2 * i_teams + 2)
         
@@ -703,9 +703,9 @@ def prompt_add_round_fixtures():
         try:
             fixtures = shelve_file["fixtures"]
         except KeyError:
-            fixtures = np.zeros((NUMBER_OF_ROUNDS, MAX_NUMBER_OF_MATCHES_PER_ROUND, 2), dtype="<U32")
+            fixtures = np.zeros((settings["NUMBER_OF_ROUNDS"], settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 2), dtype="<U32")
         cur_fixtures = fixtures
-        blank_fixtures = np.zeros((MAX_NUMBER_OF_MATCHES_PER_ROUND, 2), dtype="<U32")
+        blank_fixtures = np.zeros((settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 2), dtype="<U32")
         
         for fixture in range (len(blank_fixtures)):
             team_1_id = team_1_input[fixture].get()
@@ -785,8 +785,8 @@ def prompt_add_prediction():
     def send_prediction():
         def confirm_overwrite(): 
             def confirmed_overwrite(): # Surely there is a better way to do this, but I do not know tkinter well enough.
-                blank_predictions = np.zeros((MAX_NUMBER_OF_MATCHES_PER_ROUND, 4), dtype="<U32")
-                for prediction in range (MAX_NUMBER_OF_MATCHES_PER_ROUND):
+                blank_predictions = np.zeros((settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
+                for prediction in range (settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"]):
                     team_1_score = team_1_score_input[prediction].get("1.0", "end-1c")
                     team_2_score = team_2_score_input[prediction].get("1.0", "end-1c")
                     
@@ -808,8 +808,8 @@ def prompt_add_prediction():
             cancel_button = ttk.Button(warning_win, text="Cancel", command=lambda : warning_win.destroy())
             cancel_button.grid(row=2, column=0)
         def overwrite():
-            blank_predictions = np.zeros((MAX_NUMBER_OF_MATCHES_PER_ROUND, 4), dtype="<U32")
-            for prediction in range (MAX_NUMBER_OF_MATCHES_PER_ROUND):
+            blank_predictions = np.zeros((settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
+            for prediction in range (settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"]):
                 team_1_score = team_1_score_input[prediction].get("1.0", "end-1c")
                 team_2_score = team_2_score_input[prediction].get("1.0", "end-1c")
                 
@@ -835,7 +835,7 @@ def prompt_add_prediction():
         except:
             league_filename = settings["LEAGUE_FILENAME"]
             print(f"Could not open predictions for {league_filename}, creating a default one.")
-            cur_predictions = np.zeros((NUMBER_OF_PLAYERS, NUMBER_OF_ROUNDS, MAX_NUMBER_OF_MATCHES_PER_ROUND, 4), dtype="<U32")
+            cur_predictions = np.zeros((settings["NUMBER_OF_PLAYERS"], settings["NUMBER_OF_ROUNDS"], settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
         if cur_predictions[player_index][round_index].any() != 0:
             confirm_overwrite()
         else:
@@ -901,10 +901,10 @@ def prompt_add_round_results():
     def send_round():
         cur_results = try_open_data("results", settings["LEAGUE_FILENAME"])
         cur_fixtures = fixtures
-        blank_results = np.zeros((MAX_NUMBER_OF_MATCHES_PER_ROUND, 4), dtype="<U32")
+        blank_results = np.zeros((settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
         if isinstance(cur_results, int): #If it does not exist/is invalid create a new one
-            cur_results = np.zeros((NUMBER_OF_ROUNDS, MAX_NUMBER_OF_MATCHES_PER_ROUND, 4), dtype="<U32")
-        for result in range (MAX_NUMBER_OF_MATCHES_PER_ROUND):
+            cur_results = np.zeros((settings["NUMBER_OF_ROUNDS"], settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
+        for result in range (settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"]):
             team_1 = cur_fixtures[result][0]
             team_2 = cur_fixtures[result][1]
             team_1_score = team_1_score_input[result].get("1.0", "end-1c")
@@ -954,7 +954,7 @@ def get_total_scores_all_rounds():
     total_scores = []
     for player in settings["players"]:
         player_score = 0
-        for _round in range (NUMBER_OF_ROUNDS):
+        for _round in range (settings["NUMBER_OF_ROUNDS"]):
             current_score = get_player_score_for_round(player, _round)
             if current_score > 0:
                 player_score += current_score
@@ -974,7 +974,7 @@ def get_player_score_for_round(player, _round, display=True):
     round_predictions = predictions[player_index][round_index]
     round_results = results[round_index]
     round_points = 0
-    for game in range (MAX_NUMBER_OF_MATCHES_PER_ROUND):
+    for game in range (settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"]):
         teams = round_predictions[game][0:2]
         predicted_scores = round_predictions[game][2:]
         real_scores = round_results[game][2:]
@@ -1014,7 +1014,7 @@ def show_player_scores_at_round():
 ############################# -V- OPTIONS FUNCTIONS -V- #######################
 def create_yn_box(window):
     yn_box = ttk.Combobox(window, state="readonly", width=5)
-    yn_box["values"] = ["True", "False"]
+    yn_box["values"] = ["Yes", "No"]
     return yn_box
 def create_number_box(window):
     number_box = Text(window, height=1, width=4)
@@ -1030,7 +1030,7 @@ def create_list_box(window, length): #list as argument, return array of Text() a
 def get_box_value(box, box_type): #I know it's extraneous but I cannot be bothered sifting tkinter documentation
     if box_type == "yn":
         value = box.get()
-        if value == "True":
+        if value == "Yes":
             value = True
         else:
             value = False
@@ -1098,7 +1098,10 @@ def league_settings_menu():
         current_type = option_types[i]
         if current_type == "yn":
             display_values.append(create_yn_box(win))
-            display_values[-1].set(str(option_values[i]))
+            if option_values[i] == "True":
+                display_values[-1].set("Yes")
+            if option_values[i] == "False":
+                display_values[-1].set("No")
             display_values[-1].grid(row=(i + 1), column=2)
             display_keyval_space.append(Label(win, text="|"))
             display_keyval_space[-1].grid(row = (i+1), column=1)
@@ -1121,7 +1124,7 @@ def league_settings_menu():
             if option_types[i_var] == "number":
                 new_settings[var] = float(box_values[i_var])
             if option_types[i_var] == "yn":
-                new_settings[var] = bool(box_values[i_var])
+                new_settings[var] = box_values[i_var]
         settings = settings_instance.update_settings(new_settings)
         win.destroy()
         return
@@ -1350,10 +1353,12 @@ def create_team_set_menu():
             exported_dict["settings"]["team_id_table"] = exported_team_id_table
             exported_dict["settings"]["team_desc_table"] = exported_team_desc_table
             exported_dict["settings"]["LEAGUE_FILENAME"] = filename
-            exported_dict.pop("fixtures")
-            exported_dict.pop("predictions")
-            exported_dict.pop("results")
-            print(exported_dict)
+            if "fixtures" in exported_dict:
+                exported_dict.pop("fixtures")
+            if "predictions" in exported_dict:
+                exported_dict.pop("predictions")
+            if "results" in exported_dict:
+                exported_dict.pop("results")
             for key, value in zip(list(exported_dict.keys()), list(exported_dict.values())):
                 shelve_file_2[key] = value
             do_message(f"League saved as {filename}.")
@@ -1367,6 +1372,152 @@ def create_team_set_menu():
         return
     save_button = ttk.Button(win, text="Save as league", command=lambda: prompt_save_table_as_league())
     save_button.grid(row = 1, column = 4)
+    return
+"""
+    def send_settings():
+        global settings
+        new_settings = {}
+        box_values = []
+        for i_box, box in enumerate(display_values):
+            box_values.append(get_box_value(box, option_types[i_box]))
+        for i_var, var in enumerate(option_vars):
+            if option_types[i_var] == "number":
+                new_settings[var] = float(box_values[i_var])
+            if option_types[i_var] == "yn":
+                new_settings[var] = bool(box_values[i_var])
+        settings = settings_instance.update_settings(new_settings)
+        win.destroy()
+        return
+"""
+def players_menu():
+    global settings
+    win = Toplevel()
+    win.wm_title("Players")
+    lb_create = Listbox(win, width = 84, height = 10)
+    lb_create.grid(row = 0, column = 2)
+    
+    def update_table():
+        global settings
+        lb_create.delete(0, lb_create.size())
+        for i_p, p in enumerate(settings["players"]):
+            lb_create.insert(i_p, p)
+    
+    update_table()
+    
+    def add_player():
+        win_add = Toplevel()
+        win_add.wm_title("Player list")
+        player_label = Label(win_add, text="Name of player")
+        player_label.grid(row = 0, column = 0)
+        player_name_box = Text(win_add, height=1, width=50)
+        player_name_box.grid(row = 1, column = 0)
+        def create_player():
+            global settings
+            text_box = player_name_box.get("1.0",END)[:-1]
+            if text_box == "\n":
+                do_message("Please enter a player name")
+            else:
+                new_settings = {}
+                new_player_name = text_box
+                new_player_list = settings["players"]
+                new_player_list.append(new_player_name)
+                new_settings["players"] = new_player_list
+                settings = settings_instance.update_settings(new_settings)
+                old_predictions = try_open_data("predictions", settings["LEAGUE_FILENAME"])
+                if isinstance(old_predictions, int):
+                    settings_instance.save_settings()
+                    update_table()
+                    win_add.destroy()
+                    return
+                blank_player_predictions = np.zeros((1, settings["NUMBER_OF_ROUNDS"], settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
+                new_predictions = np.hstack((old_predictions, blank_player_predictions)) # if this messes up try np.concatenate
+                league_file = shelve.open(settings["LEAGUE_FILENAME"])
+                league_file["predictions"] = new_predictions
+                league_file.close()
+                settings_instance.save_settings()
+                update_table()
+                win_add.destroy()
+                # append player name to players array
+                # extend predictions array within the league file by 1 player
+            return   
+        add_button = ttk.Button(win_add, text="Add", command=lambda: create_player())
+        add_button.grid(row = 2, column = 0)
+    add_menu_button = ttk.Button(win, text="Add Player", command=lambda: add_player())
+    add_menu_button.grid(row = 1, column = 0)
+    def confirm_remove_player():
+        global settings
+        def remove_player(index):
+            global settings
+            # ask user if they're sure
+            selection = lb_create.curselection()
+            if selection == ():
+                do_message("Please select a player first.")
+            else:
+                selected_player_index = selection[0]
+                new_settings = {}
+                player_list = settings["players"]
+                new_player_list = player_list
+                new_player_list.pop(selected_player_index)
+                new_settings["players"] = new_player_list
+                settings = settings_instance.update_settings(new_settings)
+                old_predictions = try_open_data("predictions", settings["LEAGUE_FILENAME"])
+                if isinstance(old_predictions, int):
+                    settings_instance.save_settings()
+                    update_table()
+                    return
+                new_predictions = np.delete(old_predictions, selected_player_index, 0)
+                league_file = shelve.open(settings["LEAGUE_FILENAME"])
+                league_file["predictions"] = new_predictions
+                league_file.close()
+                settings_instance.save_settings()
+                update_table()
+                # remove player from players array
+                # cut predictions array
+        selected_player_index = lb_create.curselection()[0]
+        warning_win = Toplevel()
+        warning_win.wm_title("Warning")
+        current_player = settings["players"][selected_player_index]
+        msg = Label(warning_win, text=f"You are about to remove the player '{current_player}' from the game, which will permanently erase ALL of their points and predictions. Are you sure?")
+        msg.grid(row=0, column=0)
+        ok_button = ttk.Button(warning_win, text="Remove", command=((lambda : do_nothing()) and (lambda: remove_player(selected_player_index))))
+        ok_button.grid(row=1, column=0)
+        cancel_button = ttk.Button(warning_win, text="Cancel", command=lambda : warning_win.destroy())
+        cancel_button.grid(row=2, column=0)
+    remove_button = ttk.Button(win, text="Remove selected player", command=lambda: confirm_remove_player())
+    remove_button.grid(row = 1, column = 1)
+    def edit_player():
+        if lb_create.curselection() == ():
+            do_message("Select a player first.")
+            return
+        win_edit = Toplevel()
+        win_edit.wm_title("Edit selected player")
+        selected_player_index = lb_create.curselection()[0] #If multiple selected just do the first one
+        selected_player = settings["players"][selected_player_index]
+        team_label = Label(win_edit, text=f"Name of player (Selected player: {selected_player})")
+        team_label.grid(row = 0, column = 0)
+        team_name_box = Text(win_edit, height=1, width=50)
+        team_name_box.insert("1.0", selected_player)
+        team_name_box.grid(row = 1, column = 0)
+        def confirm_edit_player():
+            new_settings_dict = {}
+            text_box = team_name_box.get("1.0",END)[:-1]
+            if text_box == "\n":
+                do_message("Please enter a player name")
+            else:
+                old_players = settings["players"]
+                new_players = old_players
+                new_players[selected_player_index] = text_box
+                new_settings_dict["players"] = new_players
+                settings_instance.update_settings(new_settings_dict)
+                settings_instance.save_settings()
+                #try win_edit.destroy() here?
+                update_table()
+                win_edit.destroy()
+            return   
+        confirm_button = ttk.Button(win_edit, text="Confirm", command=(lambda: confirm_edit_player())) #cant get it to both save and close the window at the same time...
+        confirm_button.grid(row = 2, column = 0)
+    edit_button = ttk.Button(win, text="Change player name", command=lambda: edit_player())
+    edit_button.grid(row = 1, column = 3)
     return
 update_table(team_stack)
 m.title('RL Prediction League')
@@ -1412,8 +1563,8 @@ teamsmenu.add_command(label='Create new team set', command=lambda:create_team_se
 
 playersmenu = Menu(menu)
 menu.add_cascade(label='Players', menu=playersmenu)
+playersmenu.add_command(label="Manage players", command = lambda:players_menu())
 
 ui_render_league_box(lb1)
 m.mainloop()
 
-#TODO: Check out leagues not saving (probably just not executing save_league(), also the table bug where only 12-14 displays )
