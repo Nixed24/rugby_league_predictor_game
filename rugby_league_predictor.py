@@ -181,21 +181,26 @@ def do_nothing():
     return
 def try_open_data(_type, filename):
     print(f"Opening '{_type}' in '{filename}'")
+    invalid_data = False
+    no_data = False
     try:
         shelve_file = shelve.open(filename)
         data = shelve_file[_type]
         invalid_data = False
         shelve_file.close()
-        return data
-    except:
-        invalid_data = True
+    except KeyError: # File exists but key doesn't
+        no_data = True
         shelve_file.close()
         return 2
-    if data.any() != 0:
+    except: # Unknown
+        invalid_data = True
+        shelve_file.close()
+        return 3
+    if data.any() != 0: 
         no_data = False
         shelve_file.close()
         return data
-    no_data = True
+    no_data = True # Else: file exists and key exists but is blank
     shelve_file.close()
     return 1
 def do_error_message(message):
@@ -504,8 +509,10 @@ def view_fixtures():
     if isinstance(fixtures, int):
         if fixtures == -1:
             do_error_message(f"ERROR: Fixtures for this round are not entered (round {settings['ROUND']})")
+            win.destroy()
             return
         do_error_message(f"ERROR: Invalid fixtures were read for this round (round {settings['ROUND']})")
+        win.destroy()
         return
     fixtures = fixtures[round_index]
     team_1_box = []
@@ -620,9 +627,11 @@ def view_results():
     win.wm_title(f"Round results for round {settings['ROUND']}")
     if isinstance(results, int):
         if results == -1:
-            do_error_message(f"ERROR: Fixtures for this round are not entered (round {settings['ROUND']})")
+            do_error_message(f"ERROR: Results for this round are not entered (round {settings['ROUND']})")
+            win.destroy()
             return
-        do_error_message(f"ERROR: Invalid fixtures were read for this round (round {settings['ROUND']})")
+        do_error_message(f"ERROR: Invalid results were read for this round (round {settings['ROUND']}) (Code {results})")
+        win.destroy()
         return
     results = results[round_index]
     team_1_box = []
@@ -1153,7 +1162,7 @@ def scoring_settings_menu():
     display_values = []
     option_vars = (("RESULT_POINTS", "DERBY_FACTOR_POINTS", "FORM_SCORE_DIVISOR",\
                     "spaceholder", "MARGIN_POINTS", "MARGIN_LIMITS", "MIDPOINT_POINTS", "MIDPOINT_LIMITS"))
-    option_keys = ["Points for predicting correct result", "Derby bonus (Super League only)", "Form score divisor", "",\
+    option_keys = ["Points for predicting correct result", "Derby result bonus", "Form score divisor", "",\
                    "Margin accuracy points", "Margin accuracy limits", "Total score accuracy points", "Total score accuracy limits"]
     option_values = [settings["RESULT_POINTS"], settings["DERBY_FACTOR_POINTS"], settings["FORM_SCORE_DIVISOR"], \
                               "space", settings["MARGIN_POINTS"], settings["MARGIN_LIMITS"]\
@@ -1247,7 +1256,10 @@ def prompt_save_league_as():
 def prompt_import_league():
     global team_stack
     f = askopenfilename(initialdir = os.getcwd())
-    if f is None or f == '': # asksaveasfile return `None` if dialog closed with "cancel".
+    try:
+        if f.find(".") == -1: # asksaveasfile return `None` if dialog closed with "cancel".
+            return
+    except AttributeError:
         return
     f = f[:-4]
     team_stack = load_league(f)
@@ -1287,7 +1299,7 @@ def create_team_set_menu():
         add_button = ttk.Button(win_add, text="Add", command=lambda: create_team())
         add_button.grid(row = 2, column = 0)
     add_menu_button = ttk.Button(win, text="Add Team", command=lambda: add_team())
-    add_menu_button.grid(row = 1, column = 0)
+    add_menu_button.grid(row = 0, column = 0)
     def remove_team():
         line = lb_create.curselection()
         if line == ():
@@ -1296,8 +1308,8 @@ def create_team_set_menu():
             for index in line:
                 lb_create.delete(index)
                 team_table.pop(index)
-    remove_button = ttk.Button(win, text="Remove selected", command=lambda: remove_team())
-    remove_button.grid(row = 1, column = 1)
+    remove_button = ttk.Button(win, text="Remove selected team", command=lambda: remove_team())
+    remove_button.grid(row = 0, column = 3)
     def prompt_clear():
         warning_win = Toplevel()
         warning_win.wm_title("Clear all teams")
@@ -1310,8 +1322,8 @@ def create_team_set_menu():
         ok_button.grid(row=1, column=0)
         cancel_button = ttk.Button(warning_win, text="Cancel", command=lambda : warning_win.destroy())
         cancel_button.grid(row=1, column=2)
-    space_button = ttk.Button(win, text="Clear", command=lambda: prompt_clear())
-    space_button.grid(row = 1, column = 2)
+    clear_button = ttk.Button(win, text="Clear table", command=lambda: prompt_clear())
+    clear_button.grid(row = 2, column = 3)
     def edit_team():
         if lb_create.curselection() == ():
             do_message("Select a team first.")
@@ -1341,7 +1353,7 @@ def create_team_set_menu():
         confirm_button = ttk.Button(win_add, text="Confirm", command=lambda: confirm_edit_team())
         confirm_button.grid(row = 2, column = 0)
     edit_button = ttk.Button(win, text="Edit selected team", command=lambda: edit_team())
-    edit_button.grid(row = 1, column = 3)
+    edit_button.grid(row = 2, column = 0)
     def prompt_save_table_as_league():
         def save_table_as_league(filename):
             shelve_file_1 = shelve.open(settings["LEAGUE_FILENAME"])
@@ -1378,7 +1390,7 @@ def create_team_set_menu():
         save_table_as_league(f)
         return
     save_button = ttk.Button(win, text="Save as league", command=lambda: prompt_save_table_as_league())
-    save_button.grid(row = 1, column = 4)
+    save_button.grid(row = 1, column = 2)
     return
 """
     def send_settings():
@@ -1437,7 +1449,7 @@ def players_menu():
                     win_add.destroy()
                     return
                 blank_player_predictions = np.zeros((1, settings["NUMBER_OF_ROUNDS"], settings["MAX_NUMBER_OF_MATCHES_PER_ROUND"], 4), dtype="<U32")
-                new_predictions = np.hstack((old_predictions, blank_player_predictions)) # if this messes up try np.concatenate
+                new_predictions = np.concatenate((old_predictions, blank_player_predictions), axis=0)
                 league_file = shelve.open(settings["LEAGUE_FILENAME"])
                 league_file["predictions"] = new_predictions
                 league_file.close()
@@ -1447,8 +1459,8 @@ def players_menu():
             return   
         add_button = ttk.Button(win_add, text="Add", command=lambda: create_player())
         add_button.grid(row = 2, column = 0)
-    add_menu_button = ttk.Button(win, text="Add Player", command=lambda: add_player())
-    add_menu_button.grid(row = 1, column = 0)
+    add_menu_button = ttk.Button(win, text="Add player", command=lambda: add_player())
+    add_menu_button.grid(row = 0, column = 0)
     def confirm_remove_player():
         global settings
         def remove_player(index):
@@ -1486,7 +1498,7 @@ def players_menu():
         cancel_button = ttk.Button(warning_win, text="Cancel", command=lambda : warning_win.destroy())
         cancel_button.grid(row=2, column=0)
     remove_button = ttk.Button(win, text="Remove selected player", command=lambda: confirm_remove_player())
-    remove_button.grid(row = 1, column = 1)
+    remove_button.grid(row = 0, column = 3)
     def edit_player():
         if lb_player.curselection() == ():
             do_message("Select a player first.")
@@ -1518,7 +1530,7 @@ def players_menu():
         confirm_button = ttk.Button(win_edit, text="Confirm", command=(lambda: confirm_edit_player()))
         confirm_button.grid(row = 2, column = 0)
     edit_button = ttk.Button(win, text="Change player name", command=lambda: edit_player())
-    edit_button.grid(row = 1, column = 3)
+    edit_button.grid(row = 1, column = 0)
     return
 def derby_settings_menu():
     win = Toplevel()
@@ -1665,4 +1677,3 @@ playersmenu.add_command(label="Manage players", command = lambda:players_menu())
 
 ui_render_league_box(lb1)
 m.mainloop()
-
