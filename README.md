@@ -15,14 +15,9 @@ Features:
 - Program interface is entirely a GUI
 - Completely modifiable scoring system
 - Team set creation system to allow for the game to be played with other competitions (i.e Super XIII, Queensland/NSW Cup, etc.)
+- Derby fixture creation and management system to add detail to the previous feature
 - Player management system that allows the user to add players to the game even when it is in progress
-- Also keeps track of the league table, including the feature of the loser of a game being awarded points if the margin of defeat is low enough (as in the Super XIII)
-
-Short term TODO:
-
-- Add derby settings
-- Make prediction entering menu able to switch players dynamically and not close after submitting for a player
-- Make ```ROUND``` a persistent setting tied to league file
+- Also keeps track of the league table including the feature where the loser of a game is awarded points if the margin of defeat is low enough (as in the Super XIII)
 
 Long term TODO:
 
