@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-DEFAULT_LEAGUE_FILENAME = "SL_26"
+DEFAULT_LEAGUE_FILENAME = "NRL_26"
 
 import shelve
 import os
@@ -151,8 +151,6 @@ def load_settings(filename=DEFAULT_LEAGUE_FILENAME):
     
 load_settings()
 
-ROUND = 0
-
 ########################| -^- SETTINGS -^-|####################################
 
 ###############################################################################
@@ -165,14 +163,17 @@ if settings["ALPHABETICALLY_ORDER_TEAMS"]:
     settings["team_desc_table"] = settings["team_desc_table"][sort_guide]
     settings["team_id_table"] = settings["team_id_table"][sort_guide]
     settings["team_id_table"] = (settings["team_id_table"]).tolist()
-    settings["team_desc_table"] = (settings["team_desc_table"]).tolist()    
-
+    settings["team_desc_table"] = (settings["team_desc_table"]).tolist()
+    
 settings["derby_factor_table"] = np.zeros((len(settings["team_id_table"]), len(settings["team_id_table"])))
-for a, b in settings["derby_factor_pairs"]:
-    row = settings["team_id_table"].index(a)
-    column = settings["team_id_table"].index(b)
-    settings["derby_factor_table"][row][column] = 1
-    settings["derby_factor_table"][column][row] = 1
+try:
+    for a, b in settings["derby_factor_pairs"]:
+        row = settings["team_id_table"].index(a)
+        column = settings["team_id_table"].index(b)
+        settings["derby_factor_table"][row][column] = 1
+        settings["derby_factor_table"][column][row] = 1
+except:
+    pass
 
 m = Tk()
 lb1 = Listbox(m, width = 75, height = 20)
@@ -779,7 +780,8 @@ def prompt_add_prediction():
     team_header_2.grid(row=1, column=3)
     
     ui_index = 0
-    
+    print(round_index)
+    print(fixtures)
     for i_teams, teams in enumerate(fixtures):
         ui_index = (2 * i_teams + 2)
         
@@ -866,7 +868,7 @@ def prompt_add_prediction():
     return
 def prompt_add_round_results():
     """WIP"""
-    round_num = ROUND
+    round_num = settings["ROUND"]
     round_index = int(round_num) - 1
     fixtures = try_open_data("fixtures", settings["LEAGUE_FILENAME"])
     fixtures = fixtures[round_index]
@@ -896,10 +898,11 @@ def prompt_add_round_results():
     score_header_2.grid(row=2, column=3)
     
     ui_index = 0
+    print(round_index)
+    print(fixtures)
     for i_teams, teams in enumerate(fixtures):
         
         ui_index = (2 * i_teams + 2)
-        
         team_1_box.append(Label(win, text=teams[0]))
         team_1_box[-1].grid(row=(ui_index + 1), column=0)
         
