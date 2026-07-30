@@ -1,4 +1,5 @@
 # Rugby League Predictor Game
+A predictor game for Rugby League competitions
 
 REQUIRED LIBRARIES:
 
