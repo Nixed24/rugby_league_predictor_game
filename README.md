@@ -19,6 +19,11 @@ Features:
 - Player management system that allows the user to add players to the game even when it is in progress
 - Also keeps track of the league table including the feature where the loser of a game is awarded points if the margin of defeat is low enough (as in the Super XIII)
 
+Medium term TODO:
+
+- Automatically alphabetically order teams
+- Refine form score system
+
 Long term TODO:
 
 - Add a feature to break down per-round player scores
