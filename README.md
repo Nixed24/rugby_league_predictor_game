@@ -1,4 +1,4 @@
-**Rugby League Predictor Game**
+# Rugby League Predictor Game
 
 REQUIRED LIBRARIES:
 
