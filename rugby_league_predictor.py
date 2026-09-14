@@ -505,16 +505,14 @@ def view_fixtures():
     round_num = settings['ROUND']
     round_index = int(round_num) - 1
     fixtures = try_open_data("fixtures", settings["LEAGUE_FILENAME"])
-    win = Toplevel()
-    win.wm_title(f"Round fixtures for round {ROUND}")
     if isinstance(fixtures, int):
         if fixtures == -1:
             do_error_message(f"ERROR: Fixtures for this round are not entered (round {settings['ROUND']})")
-            win.destroy()
             return
         do_error_message(f"ERROR: Invalid fixtures were read for this round (round {settings['ROUND']})")
-        win.destroy()
         return
+    win = Toplevel()
+    win.wm_title(f"Round fixtures for round {ROUND}")
     fixtures = fixtures[round_index]
     team_1_box = []
     space = []
@@ -573,14 +571,14 @@ def view_predictions():
         round_num = settings['ROUND']
         round_index = int(round_num) - 1
         predictions = try_open_data("predictions", settings["LEAGUE_FILENAME"])
-        win = Toplevel()
-        win.wm_title(f'Round predictions for round {settings['ROUND']} for player "{player_selected}"')
         if isinstance(predictions, int):
             if predictions == -1:
                 do_error_message(f"ERROR: Fixtures for this round are not entered (round {settings['ROUND']})")
                 return
             do_error_message(f"ERROR: Invalid fixtures were read for this round (round {settings['ROUND']})")
             return
+        win = Toplevel()
+        win.wm_title(f'Round predictions for round {settings['ROUND']} for player "{player_selected}"')
         predictions = predictions[player_index][round_index]
         team_1_box = []
         team_1_score = []
@@ -624,16 +622,14 @@ def view_results():
     round_num = settings['ROUND']
     round_index = int(round_num) - 1
     results = try_open_data("results", settings["LEAGUE_FILENAME"])
-    win = Toplevel()
-    win.wm_title(f"Round results for round {settings['ROUND']}")
     if isinstance(results, int):
         if results == -1:
             do_error_message(f"ERROR: Results for this round are not entered (round {settings['ROUND']})")
-            win.destroy()
             return
         do_error_message(f"ERROR: Invalid results were read for this round (round {settings['ROUND']}) (Code {results})")
-        win.destroy()
         return
+    win = Toplevel()
+    win.wm_title(f"Round results for round {settings['ROUND']}")
     results = results[round_index]
     team_1_box = []
     team_1_score = []
